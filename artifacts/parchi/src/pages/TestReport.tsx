@@ -7,11 +7,13 @@ import { ShareButton } from "@/components/ShareButton";
 import { TestReportResult } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
 import { CheckCircle, ArrowUp, ArrowDown, Minus, AlertTriangle } from "lucide-react";
+import { useHistory } from "@/hooks/use-history";
 
 export function TestReport() {
   const [result, setResult] = useState<TestReportResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const { addEntry } = useHistory();
 
   const handleUpload = async (file: File) => {
     setIsLoading(true);
@@ -56,6 +58,7 @@ export function TestReport() {
       }
 
       setResult(data);
+      addEntry("testreport", file.name, data);
     } catch (error) {
       console.error(error);
       const message = error instanceof Error ? error.message : "We couldn't read this test report. Please try again.";
@@ -116,10 +119,13 @@ export function TestReport() {
           </Link>
           <div className="flex gap-4">
             <Link href="/prescription" className="text-sm font-medium text-gray-500 hover:text-gray-900 px-1 py-4">
-              My Prescription
+              Prescription
             </Link>
             <Link href="/testreport" className="text-sm font-medium text-blue-600 border-b-2 border-blue-600 px-1 py-4">
               Test Report
+            </Link>
+            <Link href="/history" className="text-sm font-medium text-gray-500 hover:text-gray-900 px-1 py-4">
+              History
             </Link>
           </div>
         </div>
@@ -185,6 +191,10 @@ export function TestReport() {
         <Link href="/testreport" className="flex flex-col items-center p-2 text-blue-600">
           <span className="text-xl mb-1">🧪</span>
           <span className="text-[10px] font-medium">Test Report</span>
+        </Link>
+        <Link href="/history" className="flex flex-col items-center p-2 text-gray-400">
+          <span className="text-xl mb-1">🕐</span>
+          <span className="text-[10px] font-medium">History</span>
         </Link>
       </div>
     </div>

@@ -7,6 +7,7 @@ import { Disclaimer } from "@/components/Disclaimer";
 import { ShareButton } from "@/components/ShareButton";
 import { PrescriptionResult } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
+import { useHistory } from "@/hooks/use-history";
 
 const SAMPLE_RESULT: PrescriptionResult = {
   medicines: [
@@ -79,6 +80,7 @@ export function Prescription() {
   const [isLoading, setIsLoading] = useState(false);
   const [isDemo, setIsDemo] = useState(false);
   const { toast } = useToast();
+  const { addEntry } = useHistory();
 
   const handleUpload = async (file: File) => {
     setIsLoading(true);
@@ -123,6 +125,7 @@ export function Prescription() {
       }
 
       setResult(data);
+      addEntry("prescription", file.name, data);
     } catch (error) {
       console.error(error);
       const message = error instanceof Error ? error.message : "We couldn't read this prescription. Please try again.";
@@ -145,10 +148,13 @@ export function Prescription() {
           </Link>
           <div className="flex gap-4">
             <Link href="/prescription" className="text-sm font-medium text-brand-green border-b-2 border-brand-green px-1 py-4">
-              My Prescription
+              Prescription
             </Link>
             <Link href="/testreport" className="text-sm font-medium text-gray-500 hover:text-gray-900 px-1 py-4">
               Test Report
+            </Link>
+            <Link href="/history" className="text-sm font-medium text-gray-500 hover:text-gray-900 px-1 py-4">
+              History
             </Link>
           </div>
         </div>
@@ -226,6 +232,10 @@ export function Prescription() {
         <Link href="/testreport" className="flex flex-col items-center p-2 text-gray-400">
           <span className="text-xl mb-1">🧪</span>
           <span className="text-[10px] font-medium">Test Report</span>
+        </Link>
+        <Link href="/history" className="flex flex-col items-center p-2 text-gray-400">
+          <span className="text-xl mb-1">🕐</span>
+          <span className="text-[10px] font-medium">History</span>
         </Link>
       </div>
     </div>
