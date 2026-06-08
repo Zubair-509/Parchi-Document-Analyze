@@ -82,7 +82,22 @@ Return ONLY a valid JSON object with this exact structure:
 
 const USER_PROMPT = `Please read this prescription image carefully. Extract every medicine you can see — including handwritten ones. Follow the system instructions exactly and return only valid JSON.`;
 
-const MODELS = ["gemini-2.5-flash", "gemini-2.0-flash"];
+function cleanJson(raw: string): string {
+  const trimmed = raw.trim();
+  const fenced = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
+  if (fenced) return fenced[1].trim();
+  const firstBrace = trimmed.indexOf("{");
+  const lastBrace = trimmed.lastIndexOf("}");
+  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    return trimmed.slice(firstBrace, lastBrace + 1);
+  }
+  return trimmed;
+}
+
+const MODELS: Array<{ name: string; thinkingBudget?: number }> = [
+  { name: "gemini-2.0-flash" },
+  { name: "gemini-2.5-flash", thinkingBudget: 0 },
+];
 
 async function generateWithFallback(parts: object[]) {
   let lastError: unknown;
@@ -90,12 +105,15 @@ async function generateWithFallback(parts: object[]) {
     for (let attempt = 1; attempt <= 2; attempt++) {
       try {
         const response = await ai.models.generateContent({
-          model,
+          model: model.name,
           config: {
             systemInstruction: PRESCRIPTION_SYSTEM_INSTRUCTION,
             maxOutputTokens: 8192,
             responseMimeType: "application/json",
             temperature: 0.1,
+            ...(model.thinkingBudget !== undefined
+              ? { thinkingConfig: { thinkingBudget: model.thinkingBudget } }
+              : {}),
           },
           contents: [{ role: "user", parts }],
         });
@@ -104,11 +122,9 @@ async function generateWithFallback(parts: object[]) {
         lastError = err;
         const status = (err as { status?: number })?.status;
         if (status === 503 || status === 429) {
-          // Wait before retry/fallback: 2s on first attempt, skip on second
           if (attempt === 1) await new Promise(r => setTimeout(r, 2000));
           continue;
         }
-        // Non-retryable error — throw immediately
         throw err;
       }
     }
@@ -140,9 +156,9 @@ router.post("/prescription/analyze", async (req, res): Promise<void> => {
 
     let parsed: { medicines: unknown[]; disclaimer: string; error?: string };
     try {
-      parsed = JSON.parse(text);
+      parsed = JSON.parse(cleanJson(text));
     } catch {
-      req.log.error({ text }, "Failed to parse AI JSON response");
+      req.log.error({ rawText: text.slice(0, 500) }, "Failed to parse AI JSON response");
       res.status(500).json({ error: "Could not parse AI response. Please try again." });
       return;
     }

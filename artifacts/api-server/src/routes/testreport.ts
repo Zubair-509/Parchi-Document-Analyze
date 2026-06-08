@@ -61,7 +61,22 @@ Return ONLY a valid JSON object:
 
 const USER_PROMPT = `Please read this lab report image carefully. Extract every test result visible. Follow the system instructions exactly and return only valid JSON.`;
 
-const MODELS = ["gemini-2.5-flash", "gemini-2.0-flash"];
+function cleanJson(raw: string): string {
+  const trimmed = raw.trim();
+  const fenced = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
+  if (fenced) return fenced[1].trim();
+  const firstBrace = trimmed.indexOf("{");
+  const lastBrace = trimmed.lastIndexOf("}");
+  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    return trimmed.slice(firstBrace, lastBrace + 1);
+  }
+  return trimmed;
+}
+
+const MODELS: Array<{ name: string; thinkingBudget?: number }> = [
+  { name: "gemini-2.0-flash" },
+  { name: "gemini-2.5-flash", thinkingBudget: 0 },
+];
 
 async function generateWithFallback(parts: object[]) {
   let lastError: unknown;
@@ -69,12 +84,15 @@ async function generateWithFallback(parts: object[]) {
     for (let attempt = 1; attempt <= 2; attempt++) {
       try {
         const response = await ai.models.generateContent({
-          model,
+          model: model.name,
           config: {
             systemInstruction: TEST_REPORT_SYSTEM_INSTRUCTION,
             maxOutputTokens: 8192,
             responseMimeType: "application/json",
             temperature: 0.1,
+            ...(model.thinkingBudget !== undefined
+              ? { thinkingConfig: { thinkingBudget: model.thinkingBudget } }
+              : {}),
           },
           contents: [{ role: "user", parts }],
         });
@@ -117,9 +135,9 @@ router.post("/testreport/analyze", async (req, res): Promise<void> => {
 
     let parsed: { test_values: unknown[]; summary: unknown; disclaimer: string; error?: string };
     try {
-      parsed = JSON.parse(text);
+      parsed = JSON.parse(cleanJson(text));
     } catch {
-      req.log.error({ text }, "Failed to parse AI JSON response for test report");
+      req.log.error({ rawText: text.slice(0, 500) }, "Failed to parse AI JSON response for test report");
       res.status(500).json({ error: "Could not parse AI response. Please try again." });
       return;
     }
