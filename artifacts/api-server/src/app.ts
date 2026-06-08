@@ -1,6 +1,8 @@
 import express, { type Express } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
+import path from "path";
+import { fileURLToPath } from "url";
 import router from "./routes";
 import { logger } from "./lib/logger";
 
@@ -30,5 +32,15 @@ app.use(express.json({ limit: "20mb" }));
 app.use(express.urlencoded({ extended: true, limit: "20mb" }));
 
 app.use("/api", router);
+
+// In production, serve the built Vite frontend and handle SPA routing
+if (process.env.NODE_ENV === "production") {
+  const __dirname = path.dirname(fileURLToPath(import.meta.url));
+  const frontendPath = path.resolve(__dirname, "../../parchi/dist/public");
+  app.use(express.static(frontendPath));
+  app.get("*", (_req, res) => {
+    res.sendFile(path.join(frontendPath, "index.html"));
+  });
+}
 
 export default app;
