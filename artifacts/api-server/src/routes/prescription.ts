@@ -97,12 +97,19 @@ function cleanJson(raw: string): string {
 const MODELS: Array<{ name: string; thinkingBudget?: number }> = [
   { name: "gemini-2.0-flash" },
   { name: "gemini-2.5-flash", thinkingBudget: 0 },
+  { name: "gemini-1.5-flash" },
 ];
+
+const BACKOFF_MS = [2000, 5000, 10000];
+
+async function sleep(ms: number) {
+  return new Promise(r => setTimeout(r, ms));
+}
 
 async function generateWithFallback(parts: object[]) {
   let lastError: unknown;
   for (const model of MODELS) {
-    for (let attempt = 1; attempt <= 2; attempt++) {
+    for (let attempt = 0; attempt < 3; attempt++) {
       try {
         const response = await ai.models.generateContent({
           model: model.name,
@@ -122,10 +129,14 @@ async function generateWithFallback(parts: object[]) {
         lastError = err;
         const status = (err as { status?: number })?.status;
         if (status === 503 || status === 429) {
-          if (attempt === 1) await new Promise(r => setTimeout(r, 2000));
+          const delay = BACKOFF_MS[attempt] ?? 10000;
+          logger.warn({ model: model.name, attempt, status, delay }, "Gemini overloaded, backing off");
+          await sleep(delay);
           continue;
         }
-        throw err;
+        // Non-retryable — try next model immediately
+        logger.warn({ model: model.name, status }, "Gemini non-retryable error, trying next model");
+        break;
       }
     }
   }
