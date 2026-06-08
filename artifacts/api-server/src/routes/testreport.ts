@@ -61,6 +61,38 @@ Return ONLY a valid JSON object:
 
 const USER_PROMPT = `Please read this lab report image carefully. Extract every test result visible. Follow the system instructions exactly and return only valid JSON.`;
 
+const MODELS = ["gemini-2.5-flash", "gemini-1.5-flash"];
+
+async function generateWithFallback(parts: object[]) {
+  let lastError: unknown;
+  for (const model of MODELS) {
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        const response = await ai.models.generateContent({
+          model,
+          config: {
+            systemInstruction: TEST_REPORT_SYSTEM_INSTRUCTION,
+            maxOutputTokens: 8192,
+            responseMimeType: "application/json",
+            temperature: 0.1,
+          },
+          contents: [{ role: "user", parts }],
+        });
+        return response;
+      } catch (err: unknown) {
+        lastError = err;
+        const status = (err as { status?: number })?.status;
+        if (status === 503 || status === 429) {
+          if (attempt === 1) await new Promise(r => setTimeout(r, 2000));
+          continue;
+        }
+        throw err;
+      }
+    }
+  }
+  throw lastError;
+}
+
 router.post("/testreport/analyze", async (req, res): Promise<void> => {
   const { imageData, mimeType } = req.body;
 
@@ -72,31 +104,10 @@ router.post("/testreport/analyze", async (req, res): Promise<void> => {
   try {
     req.log.info("Analyzing test report image");
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      config: {
-        systemInstruction: TEST_REPORT_SYSTEM_INSTRUCTION,
-        maxOutputTokens: 8192,
-        responseMimeType: "application/json",
-        temperature: 0.1,
-      },
-      contents: [
-        {
-          role: "user",
-          parts: [
-            {
-              inlineData: {
-                mimeType,
-                data: imageData,
-              },
-            },
-            {
-              text: USER_PROMPT,
-            },
-          ],
-        },
-      ],
-    });
+    const response = await generateWithFallback([
+      { inlineData: { mimeType, data: imageData } },
+      { text: USER_PROMPT },
+    ]);
 
     const text = response.text;
     if (!text) {
@@ -137,9 +148,14 @@ router.post("/testreport/analyze", async (req, res): Promise<void> => {
     };
 
     res.json({ test_values, summary, disclaimer: parsed.disclaimer });
-  } catch (err) {
+  } catch (err: unknown) {
     req.log.error({ err }, "Test report analysis failed");
-    res.status(500).json({ error: "Could not reach AI. Please try again." });
+    const status = (err as { status?: number })?.status;
+    if (status === 503 || status === 429) {
+      res.status(503).json({ error: "The AI service is busy right now. Please wait a few seconds and try again." });
+    } else {
+      res.status(500).json({ error: "Could not reach AI. Please try again." });
+    }
   }
 });
 

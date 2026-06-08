@@ -103,17 +103,19 @@ export function Prescription() {
         })
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        throw new Error('Failed to analyze prescription');
+        throw new Error(data?.error || 'Failed to analyze prescription');
       }
 
-      const data = await response.json();
       setResult(data);
     } catch (error) {
       console.error(error);
+      const message = error instanceof Error ? error.message : "We couldn't read this prescription. Please try again.";
       toast({
         title: "Analysis Failed",
-        description: "We couldn't read this prescription. Please try a clearer image.",
+        description: message,
         variant: "destructive"
       });
     } finally {
