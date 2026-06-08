@@ -8,6 +8,7 @@ import { ShareButton } from "@/components/ShareButton";
 import { PrescriptionResult } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
 import { useHistory } from "@/hooks/use-history";
+import { useAuth } from "@/contexts/auth-context";
 
 const SAMPLE_RESULT: PrescriptionResult = {
   medicines: [
@@ -81,6 +82,7 @@ export function Prescription() {
   const [isDemo, setIsDemo] = useState(false);
   const { toast } = useToast();
   const { addEntry } = useHistory();
+  const { user, logout } = useAuth();
 
   const handleUpload = async (file: File) => {
     setIsLoading(true);
@@ -146,7 +148,7 @@ export function Prescription() {
           <Link href="/" className="font-serif font-bold text-brand-green-deep text-xl">
             Parchi
           </Link>
-          <div className="flex gap-4">
+          <div className="flex items-center gap-1 sm:gap-4">
             <Link href="/prescription" className="text-sm font-medium text-brand-green border-b-2 border-brand-green px-1 py-4">
               Prescription
             </Link>
@@ -156,6 +158,15 @@ export function Prescription() {
             <Link href="/history" className="text-sm font-medium text-gray-500 hover:text-gray-900 px-1 py-4">
               History
             </Link>
+            <div className="w-px h-4 bg-gray-200 mx-1" />
+            {user ? (
+              <>
+                <span className="text-sm text-gray-600 hidden sm:inline">Hi, {user.name.split(" ")[0]}</span>
+                <button onClick={logout} className="text-sm text-gray-500 hover:text-gray-900 px-1 py-4">Sign out</button>
+              </>
+            ) : (
+              <Link href="/login" className="text-sm font-medium text-brand-green hover:text-brand-green/80 px-1 py-4">Sign in</Link>
+            )}
           </div>
         </div>
       </header>

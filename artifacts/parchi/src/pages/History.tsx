@@ -5,6 +5,7 @@ import { MedicineCard } from "@/components/MedicineCard";
 import { ScheduleView } from "@/components/ScheduleView";
 import { TestValueCard } from "@/components/TestValueCard";
 import { useHistory, HistoryEntry } from "@/hooks/use-history";
+import { useAuth } from "@/contexts/auth-context";
 import { PrescriptionResult, TestReportResult } from "@workspace/api-client-react";
 import { Trash2, Clock, ChevronLeft, AlertTriangle, ArrowUp, Minus, CheckCircle } from "lucide-react";
 
@@ -96,7 +97,8 @@ function EntryDetail({ entry, onBack }: { entry: HistoryEntry; onBack: () => voi
 }
 
 export function History() {
-  const { entries, removeEntry, clearAll } = useHistory();
+  const { entries, removeEntry, clearAll, isLoading } = useHistory();
+  const { user, logout } = useAuth();
   const [selected, setSelected] = useState<HistoryEntry | null>(null);
   const [, navigate] = useLocation();
 
@@ -107,7 +109,7 @@ export function History() {
           <Link href="/" className="font-serif font-bold text-brand-green-deep text-xl">
             Parchi
           </Link>
-          <div className="flex gap-4">
+          <div className="flex items-center gap-1 sm:gap-4">
             <Link href="/prescription" className="text-sm font-medium text-gray-500 hover:text-gray-900 px-1 py-4">
               Prescription
             </Link>
@@ -117,6 +119,15 @@ export function History() {
             <Link href="/history" className="text-sm font-medium text-brand-green border-b-2 border-brand-green px-1 py-4">
               History
             </Link>
+            <div className="w-px h-4 bg-gray-200 mx-1" />
+            {user ? (
+              <>
+                <span className="text-sm text-gray-600 hidden sm:inline">Hi, {user.name.split(" ")[0]}</span>
+                <button onClick={logout} className="text-sm text-gray-500 hover:text-gray-900 px-1 py-4">Sign out</button>
+              </>
+            ) : (
+              <Link href="/login" className="text-sm font-medium text-brand-green hover:text-brand-green/80 px-1 py-4">Sign in</Link>
+            )}
           </div>
         </div>
       </header>
@@ -126,10 +137,23 @@ export function History() {
           <EntryDetail entry={selected} onBack={() => setSelected(null)} />
         ) : (
           <>
+            {!user && (
+              <div className="mb-5 p-4 bg-brand-green/5 border border-brand-green/20 rounded-xl flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm font-medium text-gray-800">Sign in to sync your history</p>
+                  <p className="text-xs text-gray-500 mt-0.5">Access your analyses from any device</p>
+                </div>
+                <Link href="/login" className="shrink-0 px-3 py-1.5 bg-brand-green text-white text-xs font-medium rounded-lg hover:bg-brand-green/90 transition">
+                  Sign in
+                </Link>
+              </div>
+            )}
             <div className="flex justify-between items-center mb-6">
               <div>
                 <h1 className="font-serif text-2xl font-bold text-gray-900">History</h1>
-                <p className="text-sm text-gray-500 mt-0.5">Your past analyses, saved on this device</p>
+                <p className="text-sm text-gray-500 mt-0.5">
+                  {user ? `Synced to ${user.email}` : "Saved on this device"}
+                </p>
               </div>
               {entries.length > 0 && (
                 <button
