@@ -7,9 +7,76 @@ import { Disclaimer } from "@/components/Disclaimer";
 import { PrescriptionResult } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
 
+const SAMPLE_RESULT: PrescriptionResult = {
+  medicines: [
+    {
+      id: "demo-1",
+      medicine_name: "Augmentin 625",
+      standard_name: "Augmentin 625mg",
+      active_formula: "Amoxicillin + Clavulanate",
+      formula_urdu: "اموکسیسیلن",
+      purpose: "An antibiotic used to treat bacterial infections such as throat, chest, and urinary tract infections.",
+      dosage: "625mg twice daily",
+      timing: ["morning", "night"],
+      food_relation: "after_food",
+      duration: "7 days",
+      common_side_effects: ["Nausea", "Diarrhoea", "Skin rash"],
+      important_warning: "Complete the full course even if you feel better. Do not skip doses.",
+      explanation_urdu: "یہ دوائی جراثیم کے خلاف کام کرتی ہے۔ اسے کھانے کے بعد لیں اور پورا کورس مکمل کریں۔",
+      generic_alternatives: [
+        { brand_name: "Amoxiclav", manufacturer: "Highnoon", price_per_tablet_pkr: 45, tier: "affordable", note: "Same formula" },
+        { brand_name: "Clavam", manufacturer: "Getz Pharma", price_per_tablet_pkr: 55, tier: "medium", note: null },
+      ],
+      evidence: {
+        who_essential: true,
+        common_indications: ["Respiratory tract infections", "Urinary tract infections", "Skin infections"],
+        evidence_strength: "strong",
+        evidence_note: "Amoxicillin-clavulanate is a first-line antibiotic with strong evidence for bacterial infections.",
+        evidence_note_urdu: "یہ دوائی جراثیمی انفیکشن کے لیے ایک مضبوط اور مؤثر علاج ہے۔",
+        doctor_question_english: "Is this the right antibiotic for my specific infection, and is 7 days the right duration?",
+        doctor_question_urdu: "کیا یہ دوائی میرے انفیکشن کے لیے مناسب ہے اور کتنے دن لینی ہے؟",
+      },
+      confidence: "high",
+      user_edited: false,
+    },
+    {
+      id: "demo-2",
+      medicine_name: "Panadol 500mg",
+      standard_name: "Panadol",
+      active_formula: "Paracetamol",
+      formula_urdu: "پیراسیٹامول",
+      purpose: "Pain reliever and fever reducer used for headache, body aches, and fever.",
+      dosage: "500mg three times daily",
+      timing: ["morning", "afternoon", "night"],
+      food_relation: "anytime",
+      duration: "5 days",
+      common_side_effects: ["Rare at normal doses", "Liver damage if overdosed"],
+      important_warning: "Do not exceed 4 tablets (2g) per day. Avoid alcohol.",
+      explanation_urdu: "یہ دوائی بخار اور درد کو کم کرتی ہے۔ دن میں تین بار لیں لیکن 4 سے زیادہ گولیاں نہ لیں۔",
+      generic_alternatives: [
+        { brand_name: "Paracetamol (Generic)", manufacturer: "Various", price_per_tablet_pkr: 3, tier: "affordable", note: "Exact same ingredient" },
+        { brand_name: "Calpol", manufacturer: "GSK", price_per_tablet_pkr: 8, tier: "medium", note: null },
+      ],
+      evidence: {
+        who_essential: true,
+        common_indications: ["Fever", "Mild to moderate pain", "Headache"],
+        evidence_strength: "strong",
+        evidence_note: "Paracetamol is the most widely used analgesic with strong safety profile at recommended doses.",
+        evidence_note_urdu: "پیراسیٹامول درد اور بخار کے لیے ایک محفوظ اور مؤثر دوائی ہے۔",
+        doctor_question_english: "Can I take this alongside my other medicines without any interactions?",
+        doctor_question_urdu: "کیا میں یہ دوائی اپنی دوسری دوائیوں کے ساتھ لے سکتا ہوں؟",
+      },
+      confidence: "high",
+      user_edited: false,
+    },
+  ],
+  disclaimer: "Information is for guidance only. Always discuss any questions with your doctor or pharmacist. Parchi does not diagnose or prescribe. | یہ معلومات صرف رہنمائی کے لیے ہیں۔ ہمیشہ اپنے ڈاکٹر سے مشورہ کریں۔",
+};
+
 export function Prescription() {
   const [result, setResult] = useState<PrescriptionResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isDemo, setIsDemo] = useState(false);
   const { toast } = useToast();
 
   const handleUpload = async (file: File) => {
@@ -78,16 +145,30 @@ export function Prescription() {
             <h1 className="font-serif text-3xl font-bold text-gray-900 mb-2 text-center">Analyze Prescription</h1>
             <p className="text-center text-gray-600 mb-8">Upload a photo of your prescription to understand your medicines.</p>
             <UploadArea type="prescription" onUpload={handleUpload} isLoading={isLoading} />
+            <p className="text-center mt-6 text-sm text-gray-400">
+              Want to see what the output looks like?{" "}
+              <button
+                onClick={() => { setIsDemo(true); setResult(SAMPLE_RESULT); }}
+                className="text-brand-green underline hover:no-underline"
+              >
+                View a sample result
+              </button>
+            </p>
           </div>
         ) : (
           <div>
+            {isDemo && (
+              <div className="mb-4 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2 text-sm text-amber-800 text-center">
+                📋 This is a <strong>sample output</strong> — upload your own prescription to get real results.
+              </div>
+            )}
             <div className="flex justify-between items-center mb-6">
               <h1 className="font-serif text-2xl font-bold text-gray-900">Your Medicines</h1>
               <button 
-                onClick={() => setResult(null)} 
+                onClick={() => { setResult(null); setIsDemo(false); }} 
                 className="text-sm text-brand-green hover:underline"
               >
-                Scan another
+                {isDemo ? "Upload my prescription" : "Scan another"}
               </button>
             </div>
 
