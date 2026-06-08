@@ -37,10 +37,22 @@ export function TestReport() {
         })
       });
 
-      const data = await response.json();
-
       if (!response.ok) {
-        throw new Error(data?.error || 'Failed to analyze test report');
+        let errorMsg = 'Failed to analyze test report';
+        try {
+          const errData = await response.json();
+          errorMsg = errData?.error || errorMsg;
+        } catch {
+          // server returned non-JSON error body
+        }
+        throw new Error(errorMsg);
+      }
+
+      let data;
+      try {
+        data = await response.json();
+      } catch {
+        throw new Error("The server returned an invalid response. Please try again.");
       }
 
       setResult(data);
