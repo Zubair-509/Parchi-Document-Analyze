@@ -3,6 +3,7 @@ import { Link } from "wouter";
 import { UploadArea } from "@/components/UploadArea";
 import { TestValueCard } from "@/components/TestValueCard";
 import { Disclaimer } from "@/components/Disclaimer";
+import { ShareButton } from "@/components/ShareButton";
 import { TestReportResult } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
 import { CheckCircle, ArrowUp, ArrowDown, Minus, AlertTriangle } from "lucide-react";
@@ -121,14 +122,25 @@ export function TestReport() {
           </div>
         ) : (
           <div>
-            <div className="flex justify-between items-center mb-6">
+            {/* Print-only header */}
+            <div className="print-header hidden">
+              <h1 style={{ fontSize: "18pt", fontWeight: "bold", color: "#1e3a8a" }}>Parchi — Lab Report Summary</h1>
+              <p style={{ fontSize: "10pt", color: "#555", marginTop: "4pt" }}>
+                Generated on {new Date().toLocaleDateString("en-PK", { dateStyle: "long" })}
+              </p>
+            </div>
+
+            <div className="flex justify-between items-center mb-6 no-print">
               <h1 className="font-serif text-2xl font-bold text-gray-900">Your Test Results</h1>
-              <button 
-                onClick={() => setResult(null)} 
-                className="text-sm text-blue-600 hover:underline"
-              >
-                Scan another
-              </button>
+              <div className="flex items-center gap-3">
+                <ShareButton variant="blue" />
+                <button
+                  onClick={() => setResult(null)}
+                  className="text-sm text-blue-600 hover:underline"
+                >
+                  Scan another
+                </button>
+              </div>
             </div>
 
             <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 mb-6 flex flex-wrap gap-2">

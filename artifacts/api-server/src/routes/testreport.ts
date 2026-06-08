@@ -61,7 +61,7 @@ Return ONLY a valid JSON object:
 
 const USER_PROMPT = `Please read this lab report image carefully. Extract every test result visible. Follow the system instructions exactly and return only valid JSON.`;
 
-const MODELS = ["gemini-2.5-flash", "gemini-1.5-flash"];
+const MODELS = ["gemini-2.5-flash", "gemini-2.0-flash"];
 
 async function generateWithFallback(parts: object[]) {
   let lastError: unknown;

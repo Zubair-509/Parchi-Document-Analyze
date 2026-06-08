@@ -82,7 +82,7 @@ Return ONLY a valid JSON object with this exact structure:
 
 const USER_PROMPT = `Please read this prescription image carefully. Extract every medicine you can see — including handwritten ones. Follow the system instructions exactly and return only valid JSON.`;
 
-const MODELS = ["gemini-2.5-flash", "gemini-1.5-flash"];
+const MODELS = ["gemini-2.5-flash", "gemini-2.0-flash"];
 
 async function generateWithFallback(parts: object[]) {
   let lastError: unknown;

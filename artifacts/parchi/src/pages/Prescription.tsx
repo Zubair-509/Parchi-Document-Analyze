@@ -4,6 +4,7 @@ import { UploadArea } from "@/components/UploadArea";
 import { MedicineCard } from "@/components/MedicineCard";
 import { ScheduleView } from "@/components/ScheduleView";
 import { Disclaimer } from "@/components/Disclaimer";
+import { ShareButton } from "@/components/ShareButton";
 import { PrescriptionResult } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -164,14 +165,25 @@ export function Prescription() {
                 📋 This is a <strong>sample output</strong> — upload your own prescription to get real results.
               </div>
             )}
-            <div className="flex justify-between items-center mb-6">
+            {/* Print-only header */}
+            <div className="print-header hidden">
+              <h1 style={{ fontSize: "18pt", fontWeight: "bold", color: "#2D5145" }}>Parchi — Prescription Summary</h1>
+              <p style={{ fontSize: "10pt", color: "#555", marginTop: "4pt" }}>
+                Generated on {new Date().toLocaleDateString("en-PK", { dateStyle: "long" })}
+              </p>
+            </div>
+
+            <div className="flex justify-between items-center mb-6 no-print">
               <h1 className="font-serif text-2xl font-bold text-gray-900">Your Medicines</h1>
-              <button 
-                onClick={() => { setResult(null); setIsDemo(false); }} 
-                className="text-sm text-brand-green hover:underline"
-              >
-                {isDemo ? "Upload my prescription" : "Scan another"}
-              </button>
+              <div className="flex items-center gap-3">
+                <ShareButton variant="green" />
+                <button
+                  onClick={() => { setResult(null); setIsDemo(false); }}
+                  className="text-sm text-brand-green hover:underline"
+                >
+                  {isDemo ? "Upload my prescription" : "Scan another"}
+                </button>
+              </div>
             </div>
 
             <ScheduleView medicines={result.medicines} />
