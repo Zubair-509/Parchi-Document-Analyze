@@ -6,6 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface HealthStatus {
-  status: string;
+export interface TestSummary {
+  total: number;
+  normal: number;
+  borderline: number;
+  flagged: number;
+  urgent: number;
 }

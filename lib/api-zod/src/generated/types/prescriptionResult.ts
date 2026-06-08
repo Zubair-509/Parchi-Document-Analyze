@@ -5,7 +5,9 @@
  * Parchi API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { Medicine } from './medicine';
 
-export interface HealthStatus {
-  status: string;
+export interface PrescriptionResult {
+  medicines: Medicine[];
+  disclaimer: string;
 }

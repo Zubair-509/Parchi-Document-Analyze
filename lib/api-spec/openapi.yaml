@@ -1,15 +1,18 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Parchi API specification
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: prescription
+    description: Prescription scanning and analysis
+  - name: testreport
+    description: Lab/blood test report scanning and analysis
 paths:
   /healthz:
     get:
@@ -24,6 +27,71 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /prescription/analyze:
+    post:
+      operationId: analyzePrescription
+      tags: [prescription]
+      summary: Analyze a prescription image
+      description: Accepts a base64-encoded prescription image and returns structured medicine data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ImageUpload"
+      responses:
+        "200":
+          description: Prescription analyzed successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PrescriptionResult"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /testreport/analyze:
+    post:
+      operationId: analyzeTestReport
+      tags: [testreport]
+      summary: Analyze a lab/blood test report image
+      description: Accepts a base64-encoded test report image and returns structured test value data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ImageUpload"
+      responses:
+        "200":
+          description: Test report analyzed successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TestReportResult"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +102,200 @@ components:
       required:
         - status
 
+    ApiError:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+
+    ImageUpload:
+      type: object
+      required:
+        - imageData
+        - mimeType
+      properties:
+        imageData:
+          type: string
+          description: Base64-encoded image data
+        mimeType:
+          type: string
+          description: MIME type of the image (image/jpeg, image/png, etc.)
+
+    GenericAlternative:
+      type: object
+      required:
+        - brand_name
+        - tier
+      properties:
+        brand_name:
+          type: string
+        manufacturer:
+          type: ["string", "null"]
+        price_per_tablet_pkr:
+          type: ["number", "null"]
+        tier:
+          type: string
+          enum: [affordable, medium, expensive]
+        note:
+          type: ["string", "null"]
+
+    EvidenceData:
+      type: object
+      properties:
+        who_essential:
+          type: ["boolean", "null"]
+        common_indications:
+          type: array
+          items:
+            type: string
+        evidence_strength:
+          type: ["string", "null"]
+          enum: [strong, common_practice, limited, null]
+        evidence_note:
+          type: ["string", "null"]
+        evidence_note_urdu:
+          type: ["string", "null"]
+        doctor_question_english:
+          type: ["string", "null"]
+        doctor_question_urdu:
+          type: ["string", "null"]
+
+    Medicine:
+      type: object
+      required:
+        - id
+        - medicine_name
+        - confidence
+      properties:
+        id:
+          type: string
+        medicine_name:
+          type: string
+        standard_name:
+          type: ["string", "null"]
+        active_formula:
+          type: ["string", "null"]
+        formula_urdu:
+          type: ["string", "null"]
+        purpose:
+          type: ["string", "null"]
+        dosage:
+          type: ["string", "null"]
+        timing:
+          type: array
+          items:
+            type: string
+            enum: [morning, afternoon, evening, night]
+        food_relation:
+          type: ["string", "null"]
+          enum: [before_food, after_food, with_food, anytime, null]
+        duration:
+          type: ["string", "null"]
+        common_side_effects:
+          type: array
+          items:
+            type: string
+        important_warning:
+          type: ["string", "null"]
+        explanation_urdu:
+          type: ["string", "null"]
+        generic_alternatives:
+          type: array
+          items:
+            $ref: "#/components/schemas/GenericAlternative"
+        evidence:
+          $ref: "#/components/schemas/EvidenceData"
+        confidence:
+          type: string
+          enum: [high, medium, low]
+        user_edited:
+          type: boolean
+
+    PrescriptionResult:
+      type: object
+      required:
+        - medicines
+        - disclaimer
+      properties:
+        medicines:
+          type: array
+          items:
+            $ref: "#/components/schemas/Medicine"
+        disclaimer:
+          type: string
+
+    TestSummary:
+      type: object
+      required:
+        - total
+        - normal
+        - borderline
+        - flagged
+        - urgent
+      properties:
+        total:
+          type: integer
+        normal:
+          type: integer
+        borderline:
+          type: integer
+        flagged:
+          type: integer
+        urgent:
+          type: integer
+
+    TestValue:
+      type: object
+      required:
+        - id
+        - test_name
+        - patient_value
+        - status
+        - urgency
+        - explanation_english
+        - explanation_urdu
+      properties:
+        id:
+          type: string
+        test_name:
+          type: string
+        test_name_urdu:
+          type: ["string", "null"]
+        patient_value:
+          type: string
+        unit:
+          type: ["string", "null"]
+        normal_range:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [normal, high, low, borderline, unclear]
+        urgency:
+          type: string
+          enum: [routine, discuss_soon, discuss_urgently]
+        explanation_english:
+          type: string
+        explanation_urdu:
+          type: string
+        doctor_question:
+          type: ["string", "null"]
+        doctor_question_urdu:
+          type: ["string", "null"]
+
+    TestReportResult:
+      type: object
+      required:
+        - test_values
+        - summary
+        - disclaimer
+      properties:
+        test_values:
+          type: array
+          items:
+            $ref: "#/components/schemas/TestValue"
+        summary:
+          $ref: "#/components/schemas/TestSummary"
+        disclaimer:
+          type: string
