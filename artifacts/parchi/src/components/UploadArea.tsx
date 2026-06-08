@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Camera, Loader2, ClipboardList } from "lucide-react";
+import { Camera, ImageIcon, Loader2, ClipboardList } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
@@ -13,13 +13,14 @@ interface UploadAreaProps {
 
 export function UploadArea({ onUpload, isLoading, type }: UploadAreaProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const validateAndUpload = (file: File) => {
+  const validateAndUpload = (file: File, inputRef: React.RefObject<HTMLInputElement | null>) => {
     setError(null);
     if (!ALLOWED_TYPES.includes(file.type)) {
       setError("Only JPG, PNG, and WebP images are supported.");
-      if (fileInputRef.current) fileInputRef.current.value = "";
+      if (inputRef.current) inputRef.current.value = "";
       return;
     }
     onUpload(file);
@@ -27,36 +28,51 @@ export function UploadArea({ onUpload, isLoading, type }: UploadAreaProps) {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) validateAndUpload(file);
+    if (file) validateAndUpload(file, fileInputRef);
+  };
+
+  const handleCameraChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) validateAndUpload(file, cameraInputRef);
   };
 
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     if (isLoading) return;
     const file = e.dataTransfer.files?.[0];
-    if (file) validateAndUpload(file);
+    if (file) validateAndUpload(file, fileInputRef);
   };
 
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
   };
 
-  const handleClick = () => {
+  const handleSelectClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
     setError(null);
     fileInputRef.current?.click();
+  };
+
+  const handleCameraClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setError(null);
+    cameraInputRef.current?.click();
   };
 
   const isPrescription = type === "prescription";
 
   const containerClasses = isPrescription
-    ? "border-brand-green text-brand-green bg-brand-green-bg/30 hover:bg-brand-green-bg/50"
-    : "border-brand-blue-border text-blue-700 bg-brand-blue-bg/50 hover:bg-brand-blue-bg";
+    ? "border-brand-green text-brand-green bg-brand-green-bg/30"
+    : "border-brand-blue-border text-blue-700 bg-brand-blue-bg/50";
+
+  const cameraButtonClasses = isPrescription
+    ? "border-brand-green text-brand-green hover:bg-brand-green-bg/60"
+    : "border-blue-300 text-blue-700 hover:bg-blue-50";
 
   return (
     <div className="space-y-2">
       <div
-        className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${containerClasses} ${isLoading ? "opacity-70 pointer-events-none" : ""}`}
-        onClick={!isLoading ? handleClick : undefined}
+        className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors ${containerClasses} ${isLoading ? "opacity-70 pointer-events-none" : ""}`}
         onDrop={handleDrop}
         onDragOver={handleDragOver}
       >
@@ -66,6 +82,14 @@ export function UploadArea({ onUpload, isLoading, type }: UploadAreaProps) {
           className="hidden"
           ref={fileInputRef}
           onChange={handleFileChange}
+        />
+        <input
+          type="file"
+          accept={ALLOWED_ACCEPT}
+          capture="environment"
+          className="hidden"
+          ref={cameraInputRef}
+          onChange={handleCameraChange}
         />
 
         <div className="flex flex-col items-center justify-center space-y-4">
@@ -103,19 +127,30 @@ export function UploadArea({ onUpload, isLoading, type }: UploadAreaProps) {
           </div>
 
           {!isLoading && (
-            <>
+            <div className="flex flex-col sm:flex-row gap-3 w-full max-w-xs">
+              <Button
+                variant="outline"
+                className={`flex-1 gap-2 border ${cameraButtonClasses}`}
+                onClick={handleCameraClick}
+              >
+                <Camera className="h-4 w-4" />
+                Take Photo
+              </Button>
               <Button
                 variant={isPrescription ? "default" : "secondary"}
-                className={
-                  isPrescription ? "" : "bg-blue-100 text-blue-800 hover:bg-blue-200"
-                }
+                className={`flex-1 gap-2 ${isPrescription ? "" : "bg-blue-100 text-blue-800 hover:bg-blue-200"}`}
+                onClick={handleSelectClick}
               >
-                Select Image
+                <ImageIcon className="h-4 w-4" />
+                Choose File
               </Button>
-              <p className="text-xs opacity-60 mt-1">
-                Supported formats: JPG, PNG, WebP
-              </p>
-            </>
+            </div>
+          )}
+
+          {!isLoading && (
+            <p className="text-xs opacity-60">
+              JPG · PNG · WebP &nbsp;|&nbsp; Drag & drop supported
+            </p>
           )}
         </div>
       </div>
