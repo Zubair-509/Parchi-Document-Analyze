@@ -1,0 +1,110 @@
+stage-0
+FROM ghcr.io/railwayapp/nixpacks:ubuntu-1745885067@sha256:d45c89d80e13d7ad0fd555b5130f22a866d9dd10e861f589932303ef2314c7de
+9ms
+scheduling build on Metal builder "production-builderv3-us-west1-6bgg"
+unpacking archive
+1.3 MB
+8ms
+using build driver nixpacks-v1.41.0
+uploading snapshot
+450.2 KB
+ 
+╔══════════════════════════════ Nixpacks v1.41.0 ══════════════════════════════╗
+║ setup      │ nodejs_22, pnpm                                                 ║
+║──────────────────────────────────────────────────────────────────────────────║
+║ install    │ pnpm install --no-frozen-lockfile                               ║
+║──────────────────────────────────────────────────────────────────────────────║
+║ build      │ BASE_PATH=/ NODE_ENV=production pnpm --filter @workspace/parchi ║
+║            │ run build                                                       ║
+║            │ pnpm --filter @workspace/api-server run build                   ║
+║──────────────────────────────────────────────────────────────────────────────║
+║ start      │ NODE_ENV=production node --enable-source-maps artifacts/api-    ║
+║            │ server/dist/index.mjs                                           ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+ 
+ 
+Saved output to:
+  snapshot-target-unpack
+
+internal
+load build definition from Dockerfile
+0ms
+
+internal
+load metadata for ghcr.io/railwayapp/nixpacks:ubuntu-1745885067
+146ms
+
+internal
+load .dockerignore
+0ms
+SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ARG "GEMINI_API_KEY") (line 11)(https://docs.docker.com/go/dockerfile/rule/secrets-used-in-arg-or-env/)
+ details: Sensitive data should not be used in the ARG or ENV commands
+SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ENV "GEMINI_API_KEY") (line 12)(https://docs.docker.com/go/dockerfile/rule/secrets-used-in-arg-or-env/)
+ details: Sensitive data should not be used in the ARG or ENV commands
+UndefinedVar: Usage of undefined variable '$NIXPACKS_PATH' (line 18)(https://docs.docker.com/go/dockerfile/rule/undefined-var/)
+ details: Variables should be defined before their use
+
+internal
+load build context
+0ms
+
+stage-0
+RUN nix-env -if .nixpacks/nixpkgs-ffeebf0acf3ae8b29f8c7049cd911b9636efd7e7.nix && nix-collect-garbage -d cached
+0ms
+
+stage-0
+COPY .nixpacks/nixpkgs-ffeebf0acf3ae8b29f8c7049cd911b9636efd7e7.nix .nixpacks/nixpkgs-ffeebf0acf3ae8b29f8c7049cd911b9636efd7e7.nix cached
+0ms
+
+stage-0
+WORKDIR /app/ cached
+0ms
+
+stage-0
+COPY . /app/.
+66ms
+
+stage-0
+RUN pnpm install --no-frozen-lockfile
+5s
+Done in 4.7s
+
+stage-0
+COPY . /app/.
+546ms
+
+stage-0
+RUN BASE_PATH=/ NODE_ENV=production pnpm --filter @workspace/parchi run build
+4s
+✓ built in 3.10s
+
+stage-0
+RUN pnpm --filter @workspace/api-server run build
+645ms
+⚡ Done in 129ms
+
+stage-0
+RUN printf '\nPATH=/app/node_modules/.bin:$PATH' >> /root/.profile
+275ms
+
+stage-0
+COPY . /app
+350ms
+
+exporting to docker image format
+17s
+containerimage.digest: sha256:775f38ad5c9bd1159a8e83beaeef6f6af0720c4eb5a24036c175a2e6a76892ec
+containerimage.descriptor: eyJtZWRpYVR5cGUiOiJhcHBsaWNhdGlvbi92bmQub2NpLmltYWdlLm1hbmlmZXN0LnYxK2pzb24iLCJkaWdlc3QiOiJzaGEyNTY6Nzc1ZjM4YWQ1YzliZDExNTlhOGU4M2JlYWVlZjZmNmFmMDcyMGM0ZWI1YTI0MDM2YzE3NWEyZTZhNzY4OTJlYyIsInNpemUiOjI5NTksImFubm90YXRpb25zIjp7Im9yZy5vcGVuY29udGFpbmVycy5pbWFnZS5jcmVhdGVkIjoiMjAyNi0wNi0wOFQyMToxMTo1OVoifSwicGxhdGZvcm0iOnsiYXJjaGl0ZWN0dXJlIjoiYW1kNjQiLCJvcyI6ImxpbnV4In19
+containerimage.config.digest: sha256:d2cec7dbb786c1c91b9145252fdfc5135345e9c775782d38432f572109e291cc
+image push
+366.3 MB
+12.7s
+ 
+====================
+Starting Healthcheck
+====================
+Path: /api/healthz
+Retry window: 1m0s
+ 
+Attempt #1 failed with service unavailable. Continuing to retry for 49s
+Attempt #2 failed with service unavailable. Continuing to retry for 38s

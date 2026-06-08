@@ -2,24 +2,14 @@ import app from "./app";
 import { logger } from "./lib/logger";
 
 const rawPort = process.env["PORT"];
-
-if (!rawPort) {
-  throw new Error(
-    "PORT environment variable is required but was not provided.",
-  );
-}
-
-const port = Number(rawPort);
+const port = rawPort ? Number(rawPort) : 8080;
 
 if (Number.isNaN(port) || port <= 0) {
-  throw new Error(`Invalid PORT value: "${rawPort}"`);
+  logger.error({ rawPort }, "Invalid PORT value, defaulting to 8080");
 }
 
-app.listen(port, (err) => {
-  if (err) {
-    logger.error({ err }, "Error listening on port");
-    process.exit(1);
-  }
+const resolvedPort = Number.isNaN(port) || port <= 0 ? 8080 : port;
 
-  logger.info({ port }, "Server listening");
+app.listen(resolvedPort, "0.0.0.0", () => {
+  logger.info({ port: resolvedPort }, "Server listening");
 });
