@@ -46,10 +46,11 @@ Return ONLY a valid JSON object with this exact structure:
       "generic_alternatives": [
         {
           "brand_name": "product name available in Pakistan pharmacies",
-          "manufacturer": "company name if known, else null",
-          "price_per_tablet_pkr": number or null,
+          "manufacturer": "Pakistani pharmaceutical company name if known, else null",
+          "price_per_tablet_pkr": number or null (current retail price in PKR at Pakistani pharmacies — be as accurate as possible based on known DRAP-registered prices),
           "tier": "affordable" | "medium" | "expensive",
-          "note": "short note (e.g. 'same active ingredient') or null"
+          "note": "short note (e.g. 'WHO Essential Medicine, same active ingredient') or null",
+          "who_verified": true | false
         }
       ],
       "evidence": {
@@ -77,8 +78,9 @@ Return ONLY a valid JSON object with this exact structure:
 6. evidence_strength: "strong" = multiple large RCTs; "common_practice" = widespread use, moderate evidence; "limited" = few quality trials.
 7. doctor_question must be information-seeking, never accusatory or challenging.
 8. Output ONLY valid JSON — absolutely no markdown, no code fences, no extra text before or after.
-9. Always provide at least 2–3 generic_alternatives in affordable/medium tiers when the formula is known.
-10. If the image shows no prescription at all (e.g. a blank page, selfie, unrelated document), return: {"medicines": [], "disclaimer": "No prescription detected in the image.", "error": "not_a_prescription"}`;
+9. For generic_alternatives: ONLY include medicines that are (a) actually available in Pakistani pharmacies, (b) DRAP-registered, and (c) preferably on the WHO Essential Medicines List 23rd Edition. Set who_verified: true only if the active formula appears on the WHO EML. Prices must reflect current Pakistani pharmacy retail prices in PKR — use your best knowledge of DRAP MRP data. Tiers: affordable = Rs 0–5/tab, medium = Rs 6–20/tab, expensive = Rs 21+/tab.
+10. Always provide at least 2–3 generic_alternatives per medicine when the formula is known. Prefer WHO EML alternatives.
+11. If the image shows no prescription at all (e.g. a blank page, selfie, unrelated document), return: {"medicines": [], "disclaimer": "No prescription detected in the image.", "error": "not_a_prescription"}`;
 
 const USER_PROMPT = `Please read this prescription image carefully. Extract every medicine you can see — including handwritten ones. Follow the system instructions exactly and return only valid JSON.`;
 
@@ -214,6 +216,147 @@ router.post("/prescription/analyze", async (req, res): Promise<void> => {
     const status = (err as { status?: number })?.status;
     if (status === 503 || status === 429) {
       res.status(503).json({ error: "The AI service is busy right now. Please wait a few seconds and try again." });
+    } else {
+      res.status(500).json({ error: "Could not reach AI. Please try again." });
+    }
+  }
+});
+
+const LOOKUP_SYSTEM_INSTRUCTION = `You are Parchi, a Pakistan pharmacy pricing and medicine information assistant.
+
+## YOUR TASK
+You will receive a list of medicine names (brand names or generic names as used in Pakistan). For each one, return structured pricing and alternative information. Focus entirely on Pakistan pharmacy context.
+
+## OUTPUT FORMAT
+Return ONLY a valid JSON object:
+{
+  "medicines": [
+    {
+      "id": "uuid-string",
+      "medicine_name": "name as provided by user",
+      "standard_name": "recognized brand or generic name in Pakistan, or null",
+      "active_formula": "INN/generic name (e.g. Paracetamol, Amoxicillin). null if truly unknown.",
+      "formula_urdu": "Urdu name if commonly used in Pakistan pharmacies, else null",
+      "purpose": "what this medicine is used for in 1 plain sentence",
+      "dosage": null,
+      "timing": [],
+      "food_relation": "anytime",
+      "duration": null,
+      "common_side_effects": ["up to 3 key side effects in plain language"],
+      "important_warning": "critical safety warning if any, else null",
+      "explanation_urdu": "1-sentence plain Urdu explanation",
+      "generic_alternatives": [
+        {
+          "brand_name": "product name available in Pakistan pharmacies",
+          "manufacturer": "Pakistani pharmaceutical company name if known, else null",
+          "price_per_tablet_pkr": number or null (current retail price in PKR — use DRAP MRP data),
+          "tier": "affordable" | "medium" | "expensive",
+          "note": "short note (e.g. 'WHO Essential Medicine') or null",
+          "who_verified": true | false
+        }
+      ],
+      "evidence": {
+        "who_essential": true | false | null,
+        "common_indications": ["Condition 1", "Condition 2"],
+        "evidence_strength": "strong" | "common_practice" | "limited" | null,
+        "evidence_note": "1-sentence factual summary",
+        "evidence_note_urdu": "same note in plain Urdu",
+        "doctor_question_english": "One polite information-seeking question for the patient to ask their doctor",
+        "doctor_question_urdu": "Same question in plain Urdu"
+      },
+      "confidence": "high" | "medium" | "low",
+      "user_edited": false
+    }
+  ],
+  "disclaimer": "Information is for guidance only. Always consult your doctor or pharmacist. Parchi does not diagnose or prescribe. | یہ معلومات صرف رہنمائی کے لیے ہیں۔ ہمیشہ اپنے ڈاکٹر یا فارماسسٹ سے مشورہ کریں۔"
+}
+
+## CRITICAL RULES
+1. Output ONLY valid JSON — no markdown, no code fences, no extra text.
+2. For generic_alternatives: ONLY include medicines that are (a) available in Pakistani pharmacies, (b) DRAP-registered, and (c) preferably on the WHO Essential Medicines List 23rd Edition. Set who_verified: true only if the active formula appears on the WHO EML.
+3. Prices must reflect current Pakistani pharmacy retail prices in PKR (DRAP MRP data). Tiers: affordable = Rs 0–5/tab, medium = Rs 6–20/tab, expensive = Rs 21+/tab.
+4. Always provide at least 2–3 generic_alternatives per medicine when the formula is known. Prefer WHO EML alternatives.
+5. If a medicine name is completely unrecognizable, set confidence: "low" and do your best.
+6. who_essential is based on the WHO Essential Medicines List 23rd Edition (2023).`;
+
+router.post("/prescription/lookup", async (req, res): Promise<void> => {
+  const { medicines } = req.body;
+
+  if (!Array.isArray(medicines) || medicines.length === 0) {
+    res.status(400).json({ error: "medicines array is required" });
+    return;
+  }
+
+  const names = (medicines as string[]).filter(m => typeof m === "string" && m.trim()).map(m => m.trim());
+  if (names.length === 0) {
+    res.status(400).json({ error: "at least one medicine name is required" });
+    return;
+  }
+
+  try {
+    req.log.info({ count: names.length }, "Looking up medicine pricing");
+
+    const prompt = `Look up Pakistan pharmacy pricing and generic alternatives for the following medicines:\n${names.map((n, i) => `${i + 1}. ${n}`).join("\n")}\n\nReturn only valid JSON following the system instructions exactly.`;
+
+    let lastError: unknown;
+    let response;
+    for (const model of MODELS) {
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          response = await ai.models.generateContent({
+            model: model.name,
+            config: {
+              systemInstruction: LOOKUP_SYSTEM_INSTRUCTION,
+              maxOutputTokens: 8192,
+              responseMimeType: "application/json",
+              temperature: 0.1,
+              ...(model.thinkingBudget !== undefined
+                ? { thinkingConfig: { thinkingBudget: model.thinkingBudget } }
+                : {}),
+            },
+            contents: [{ role: "user", parts: [{ text: prompt }] }],
+          });
+          break;
+        } catch (err: unknown) {
+          lastError = err;
+          const status = (err as { status?: number })?.status;
+          if (status === 503 || status === 429) {
+            await sleep(BACKOFF_MS[attempt] ?? 10000);
+            continue;
+          }
+          break;
+        }
+      }
+      if (response) break;
+    }
+
+    if (!response) throw lastError;
+
+    const text = response.text;
+    if (!text) {
+      res.status(500).json({ error: "No response from AI" });
+      return;
+    }
+
+    let parsed: { medicines: unknown[]; disclaimer: string };
+    try {
+      parsed = JSON.parse(cleanJson(text));
+    } catch {
+      res.status(500).json({ error: "Could not parse AI response. Please try again." });
+      return;
+    }
+
+    const meds = (parsed.medicines ?? []).map((m: unknown) => {
+      const med = m as Record<string, unknown>;
+      return { ...med, id: med.id || uuidv4(), user_edited: false };
+    });
+
+    res.json({ medicines: meds, disclaimer: parsed.disclaimer });
+  } catch (err: unknown) {
+    req.log.error({ err }, "Medicine lookup failed");
+    const status = (err as { status?: number })?.status;
+    if (status === 503 || status === 429) {
+      res.status(503).json({ error: "The AI service is busy. Please wait a moment and try again." });
     } else {
       res.status(500).json({ error: "Could not reach AI. Please try again." });
     }
