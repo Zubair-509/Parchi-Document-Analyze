@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
+import { useAuth } from '../contexts/AuthContext'
 
 const EyeIcon = ({ open }: { open: boolean }) =>
   open ? (
@@ -21,9 +22,45 @@ const features = [
 
 export default function AuthPage() {
   const [tab, setTab] = useState<'login' | 'signup'>('login')
+  const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [confirm, setConfirm] = useState('')
   const [showPass, setShowPass] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
+  const [error, setError] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+
+  const { login, register } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
+  const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/app/analyze'
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    if (tab === 'signup') {
+      if (password !== confirm) { setError('Passwords do not match'); return }
+      if (password.length < 8) { setError('Password must be at least 8 characters'); return }
+    }
+    setSubmitting(true)
+    try {
+      if (tab === 'login') {
+        await login(email, password)
+      } else {
+        await register(name, email, password)
+      }
+      navigate(from, { replace: true })
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Something went wrong')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const switchTab = (t: 'login' | 'signup') => {
+    setTab(t); setError(''); setEmail(''); setPassword(''); setConfirm(''); setName('')
+  }
 
   return (
     <div className="relative flex min-h-screen overflow-hidden bg-[var(--bg-deep)]">
@@ -34,11 +71,11 @@ export default function AuthPage() {
           style={{ background: 'radial-gradient(circle, rgba(90,138,110,0.18) 0%, transparent 65%)' }} />
       </div>
 
+      {/* Left panel */}
       <div className="relative z-10 hidden flex-col justify-between p-14 lg:flex lg:w-[45%]">
         <Link to="/" className="font-display text-2xl font-bold tracking-tight text-[var(--cream)]">
           Parchi<span style={{ color: 'var(--sage)' }}>.</span>
         </Link>
-
         <div>
           <p className="urdu mb-4 text-[clamp(22px,2.5vw,30px)] text-[var(--cream)]"
             style={{ textShadow: '0 2px 16px rgba(5,10,8,0.85)' }}>
@@ -51,7 +88,6 @@ export default function AuthPage() {
           <p className="mb-10 max-w-[380px] text-[15px] leading-relaxed text-[var(--text-muted)]">
             Every Pakistani patient deserves to understand their prescription — in their own language, at a price they can afford.
           </p>
-
           <ul className="space-y-4">
             {features.map((f) => (
               <li key={f.text} className="flex items-center gap-3 text-[14px] text-[var(--text-muted)]">
@@ -64,7 +100,6 @@ export default function AuthPage() {
             ))}
           </ul>
         </div>
-
         <div className="flex items-center gap-2 text-[12px] text-[var(--text-muted)]">
           <svg className="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>
@@ -73,6 +108,7 @@ export default function AuthPage() {
         </div>
       </div>
 
+      {/* Right panel / form */}
       <div className="relative z-10 flex flex-1 flex-col items-center justify-center px-6 py-16 sm:px-10 lg:px-16">
         <Link to="/" className="mb-8 font-display text-2xl font-bold tracking-tight text-[var(--cream)] lg:hidden">
           Parchi<span style={{ color: 'var(--sage)' }}>.</span>
@@ -82,16 +118,14 @@ export default function AuthPage() {
           <div className="rounded-2xl p-8 shadow-2xl"
             style={{ background: 'var(--bg-card)', border: '1px solid rgba(90,138,110,0.16)' }}>
 
+            {/* Tab switcher */}
             <div className="mb-8 flex rounded-xl p-1" style={{ background: 'rgba(5,10,8,0.6)' }}>
               {(['login', 'signup'] as const).map((t) => (
-                <button
-                  key={t}
-                  onClick={() => setTab(t)}
+                <button key={t} onClick={() => switchTab(t)}
                   className="flex-1 rounded-lg py-2.5 text-sm font-semibold transition-all duration-200"
                   style={tab === t
                     ? { background: 'var(--sage)', color: 'var(--cream)', boxShadow: '0 0 16px rgba(90,138,110,0.3)' }
-                    : { color: 'var(--text-muted)' }}
-                >
+                    : { color: 'var(--text-muted)' }}>
                   {t === 'login' ? 'Sign In' : 'Sign Up'}
                 </button>
               ))}
@@ -108,19 +142,29 @@ export default function AuthPage() {
               </p>
             </div>
 
-            <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); navigate('/app/analyze') }}>
+            {error && (
+              <div className="mb-5 flex items-start gap-2.5 rounded-xl px-4 py-3 text-[13px]"
+                style={{ background: 'rgba(232,130,107,0.1)', border: '1px solid rgba(232,130,107,0.25)', color: 'var(--coral)' }}>
+                <svg className="mt-0.5 h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                {error}
+              </div>
+            )}
+
+            <form className="space-y-4" onSubmit={handleSubmit}>
               {tab === 'signup' && (
-                <InputField label="Full Name" placeholder="Muhammad Ali" type="text" />
+                <InputField label="Full Name" placeholder="Muhammad Ali" type="text"
+                  value={name} onChange={setName} />
               )}
-
-              <InputField label="Email address" placeholder="ali@example.com" type="email" />
-
-              <PasswordField label="Password" show={showPass} onToggle={() => setShowPass(v => !v)} />
-
+              <InputField label="Email address" placeholder="ali@example.com" type="email"
+                value={email} onChange={setEmail} />
+              <PasswordField label="Password" show={showPass} onToggle={() => setShowPass(v => !v)}
+                value={password} onChange={setPassword} />
               {tab === 'signup' && (
-                <PasswordField label="Confirm password" show={showConfirm} onToggle={() => setShowConfirm(v => !v)} />
+                <PasswordField label="Confirm password" show={showConfirm} onToggle={() => setShowConfirm(v => !v)}
+                  value={confirm} onChange={setConfirm} />
               )}
-
               {tab === 'login' && (
                 <div className="flex justify-end">
                   <Link to="/forgot-password" className="text-[12px] text-[var(--text-muted)] transition-colors hover:text-[var(--sage)]">
@@ -128,18 +172,21 @@ export default function AuthPage() {
                   </Link>
                 </div>
               )}
-
-              <button
-                type="submit"
-                className="mt-2 flex w-full items-center justify-center gap-2.5 rounded-full py-3.5 font-semibold text-[var(--cream)] transition-all duration-200 hover:-translate-y-0.5"
+              <button type="submit" disabled={submitting}
+                className="mt-2 flex w-full items-center justify-center gap-2.5 rounded-full py-3.5 font-semibold text-[var(--cream)] transition-all duration-200 hover:-translate-y-0.5 disabled:opacity-60 disabled:cursor-not-allowed disabled:translate-y-0"
                 style={{ background: 'var(--sage)', boxShadow: '0 0 24px rgba(90,138,110,0.35)' }}
-                onMouseEnter={e => { e.currentTarget.style.background = 'var(--sage-deep)'; e.currentTarget.style.boxShadow = '0 0 36px rgba(90,138,110,0.55)' }}
+                onMouseEnter={e => { if (!submitting) { e.currentTarget.style.background = 'var(--sage-deep)'; e.currentTarget.style.boxShadow = '0 0 36px rgba(90,138,110,0.55)' }}}
                 onMouseLeave={e => { e.currentTarget.style.background = 'var(--sage)'; e.currentTarget.style.boxShadow = '0 0 24px rgba(90,138,110,0.35)' }}
               >
-                {tab === 'login' ? 'Sign In' : 'Create Account'}
-                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M5 12h14M12 5l7 7-7 7"/>
-                </svg>
+                {submitting ? (
+                  <><svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10" strokeOpacity="0.25"/><path d="M12 2a10 10 0 0110 10" strokeLinecap="round"/></svg> {tab === 'login' ? 'Signing in…' : 'Creating account…'}</>
+                ) : (
+                  <>{tab === 'login' ? 'Sign In' : 'Create Account'}
+                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M5 12h14M12 5l7 7-7 7"/>
+                    </svg>
+                  </>
+                )}
               </button>
             </form>
           </div>
@@ -147,13 +194,13 @@ export default function AuthPage() {
           <p className="mt-6 text-center text-[13px] text-[var(--text-muted)]">
             {tab === 'login' ? (
               <>Don't have an account?{' '}
-                <button onClick={() => setTab('signup')} className="font-semibold text-[var(--sage)] hover:underline">
+                <button onClick={() => switchTab('signup')} className="font-semibold text-[var(--sage)] hover:underline">
                   Sign up free
                 </button>
               </>
             ) : (
               <>Already have an account?{' '}
-                <button onClick={() => setTab('login')} className="font-semibold text-[var(--sage)] hover:underline">
+                <button onClick={() => switchTab('login')} className="font-semibold text-[var(--sage)] hover:underline">
                   Sign in
                 </button>
               </>
@@ -165,13 +212,13 @@ export default function AuthPage() {
   )
 }
 
-function InputField({ label, placeholder, type }: { label: string; placeholder: string; type: string }) {
+function InputField({ label, placeholder, type, value, onChange }: {
+  label: string; placeholder: string; type: string; value: string; onChange: (v: string) => void
+}) {
   return (
     <div>
       <label className="mb-1.5 block text-[12px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">{label}</label>
-      <input
-        type={type}
-        placeholder={placeholder}
+      <input type={type} placeholder={placeholder} value={value} onChange={e => onChange(e.target.value)} required
         className="w-full rounded-xl px-4 py-3 text-sm text-[var(--cream)] placeholder-[rgba(156,194,166,0.4)] outline-none transition-all duration-200"
         style={{ background: 'rgba(5,10,8,0.7)', border: '1px solid rgba(90,138,110,0.18)' }}
         onFocus={e => (e.target.style.borderColor = 'rgba(90,138,110,0.6)')}
@@ -181,26 +228,21 @@ function InputField({ label, placeholder, type }: { label: string; placeholder: 
   )
 }
 
-function PasswordField({ label, show, onToggle }: { label: string; show: boolean; onToggle: () => void }) {
+function PasswordField({ label, show, onToggle, value, onChange }: {
+  label: string; show: boolean; onToggle: () => void; value: string; onChange: (v: string) => void
+}) {
   return (
     <div>
-      <label className="mb-1.5 block text-[12px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">
-        {label}
-      </label>
+      <label className="mb-1.5 block text-[12px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">{label}</label>
       <div className="relative">
-        <input
-          type={show ? 'text' : 'password'}
-          placeholder="••••••••"
+        <input type={show ? 'text' : 'password'} placeholder="••••••••" value={value} onChange={e => onChange(e.target.value)} required
           className="w-full rounded-xl px-4 py-3 pr-11 text-sm text-[var(--cream)] placeholder-[rgba(156,194,166,0.35)] outline-none transition-all duration-200"
           style={{ background: 'rgba(5,10,8,0.7)', border: '1px solid rgba(90,138,110,0.18)' }}
           onFocus={e => (e.target.style.borderColor = 'rgba(90,138,110,0.6)')}
           onBlur={e => (e.target.style.borderColor = 'rgba(90,138,110,0.18)')}
         />
-        <button
-          type="button"
-          onClick={onToggle}
-          className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] transition-colors hover:text-[var(--cream)]"
-        >
+        <button type="button" onClick={onToggle}
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] transition-colors hover:text-[var(--cream)]">
           <EyeIcon open={show} />
         </button>
       </div>
