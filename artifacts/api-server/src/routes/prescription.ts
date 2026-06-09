@@ -95,9 +95,8 @@ function cleanJson(raw: string): string {
 }
 
 const MODELS: Array<{ name: string; thinkingBudget?: number }> = [
-  { name: "gemini-2.0-flash" },
   { name: "gemini-2.5-flash", thinkingBudget: 0 },
-  { name: "gemini-1.5-flash" },
+  { name: "gemini-2.0-flash" },
 ];
 
 const BACKOFF_MS = [2000, 5000, 10000];
