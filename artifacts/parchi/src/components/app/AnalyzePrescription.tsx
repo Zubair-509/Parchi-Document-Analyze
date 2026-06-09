@@ -28,8 +28,17 @@ const tierColor = (tier: string) => {
 }
 
 const foodLabel = (r: string) => {
-  const m: Record<string, string> = { before_food: 'Before food', after_food: 'After food', with_food: 'With food', anytime: 'Any time' }
-  return m[r] ?? r
+  const m: Record<string, { en: string; ur: string }> = {
+    before_food: { en: 'Before food',  ur: 'کھانے سے پہلے' },
+    after_food:  { en: 'After food',   ur: 'کھانے کے بعد' },
+    with_food:   { en: 'With food',    ur: 'کھانے کے ساتھ' },
+    anytime:     { en: 'Any time',     ur: 'کسی بھی وقت' },
+  }
+  return m[r] ?? { en: r, ur: '' }
+}
+
+const TIMING_UR: Record<string, string> = {
+  morning: 'صبح', afternoon: 'دوپہر', evening: 'شام', night: 'رات',
 }
 
 export default function AnalyzePrescription() {
@@ -223,7 +232,10 @@ export default function AnalyzePrescription() {
                           <span className="text-[11px] text-[var(--text-muted)]">· {med.standard_name}</span>
                         )}
                       </div>
-                      <p className="mb-1 text-[12px] text-[var(--text-muted)]">{med.active_formula ?? ''} · {med.dosage}</p>
+                      <p className="mb-0.5 text-[12px] text-[var(--text-muted)]">{med.active_formula ?? ''} · {med.dosage}</p>
+                      {med.formula_urdu && (
+                        <p className="mb-1 text-[12px] text-[var(--sage)]" dir="rtl" style={{ fontFamily: 'Noto Nastaliq Urdu', lineHeight: 1.8 }}>{med.formula_urdu}</p>
+                      )}
                       <p className="text-[12px] text-[var(--text-muted)]">{med.purpose}</p>
                     </div>
                     <div className="flex shrink-0 flex-col items-end gap-1.5">
@@ -245,10 +257,16 @@ export default function AnalyzePrescription() {
 
                       {/* Dosage info */}
                       <div className="flex flex-wrap gap-2">
-                        <Chip label={`📋 ${med.dosage}`} />
-                        <Chip label={`⏱ ${med.duration ?? 'See doctor'}`} />
-                        <Chip label={`🍽 ${foodLabel(med.food_relation)}`} />
-                        {med.timing.length > 0 && <Chip label={`🕐 ${med.timing.join(', ')}`} />}
+                        <Chip en={med.dosage} ur={med.dosage} icon="📋" />
+                        <Chip en={med.duration ?? 'See doctor'} ur={med.duration ?? 'ڈاکٹر سے پوچھیں'} icon="⏱" />
+                        <Chip en={foodLabel(med.food_relation).en} ur={foodLabel(med.food_relation).ur} icon="🍽" />
+                        {med.timing.length > 0 && (
+                          <Chip
+                            en={med.timing.join(', ')}
+                            ur={med.timing.map(t => TIMING_UR[t] ?? t).join(' · ')}
+                            icon="🕐"
+                          />
+                        )}
                       </div>
 
                       {/* Urdu explanation */}
@@ -276,7 +294,9 @@ export default function AnalyzePrescription() {
                       {/* Side effects */}
                       {med.common_side_effects.length > 0 && (
                         <div>
-                          <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-[var(--text-muted)]">Common side effects</p>
+                          <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-[var(--text-muted)]">
+                            Common side effects · <span dir="rtl" style={{ fontFamily: 'Noto Nastaliq Urdu' }}>ممکنہ ضمنی اثرات</span>
+                          </p>
                           <div className="flex flex-wrap gap-2">
                             {med.common_side_effects.map(s => (
                               <span key={s} className="rounded-full px-3 py-1 text-[12px] text-[var(--text-muted)]"
@@ -289,7 +309,9 @@ export default function AnalyzePrescription() {
                       {/* Generic alternatives */}
                       {med.generic_alternatives.length > 0 && (
                         <div>
-                          <p className="mb-3 text-[11px] font-bold uppercase tracking-wide text-[var(--text-muted)]">Affordable alternatives</p>
+                          <p className="mb-3 text-[11px] font-bold uppercase tracking-wide text-[var(--text-muted)]">
+                            Affordable alternatives · <span dir="rtl" style={{ fontFamily: 'Noto Nastaliq Urdu' }}>سستے متبادل</span>
+                          </p>
                           <div className="space-y-2">
                             {med.generic_alternatives.map((alt, i) => (
                               <div key={i} className="flex items-center justify-between rounded-xl px-4 py-3"
@@ -318,8 +340,8 @@ export default function AnalyzePrescription() {
 
                       {/* Evidence */}
                       {med.evidence && (
-                        <div className="rounded-xl px-4 py-3" style={{ background: 'rgba(107,159,212,0.06)', border: '1px solid rgba(107,159,212,0.14)' }}>
-                          <div className="mb-2 flex items-center gap-2">
+                        <div className="rounded-xl px-4 py-3 space-y-2" style={{ background: 'rgba(107,159,212,0.06)', border: '1px solid rgba(107,159,212,0.14)' }}>
+                          <div className="flex items-center gap-2">
                             {med.evidence.who_essential && (
                               <span className="rounded px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-[#6b9fd4]"
                                 style={{ background: 'rgba(107,159,212,0.14)' }}>WHO Essential</span>
@@ -330,10 +352,20 @@ export default function AnalyzePrescription() {
                               </span>
                             )}
                           </div>
-                          {med.evidence.doctor_question_urdu && (
-                            <p className="urdu text-[13px] text-[var(--cream)]" style={{ lineHeight: '2', textShadow: '0 1px 4px rgba(5,10,8,0.7)' }}>
-                              💬 {med.evidence.doctor_question_urdu}
+                          {med.evidence.evidence_note_urdu && (
+                            <p className="urdu text-[12px] text-[var(--text-muted)]" dir="rtl" style={{ fontFamily: 'Noto Nastaliq Urdu', lineHeight: '2' }}>
+                              {med.evidence.evidence_note_urdu}
                             </p>
+                          )}
+                          {med.evidence.doctor_question_urdu && (
+                            <div className="pt-1 border-t" style={{ borderColor: 'rgba(107,159,212,0.15)' }}>
+                              <p className="mb-0.5 text-[10px] font-bold uppercase tracking-wide text-[#6b9fd4]">
+                                ڈاکٹر سے پوچھیں
+                              </p>
+                              <p className="urdu text-[13px] text-[var(--cream)]" dir="rtl" style={{ fontFamily: 'Noto Nastaliq Urdu', lineHeight: '2.2' }}>
+                                💬 {med.evidence.doctor_question_urdu}
+                              </p>
+                            </div>
                           )}
                         </div>
                       )}
@@ -369,11 +401,15 @@ export default function AnalyzePrescription() {
   )
 }
 
-function Chip({ label }: { label: string }) {
+function Chip({ en, ur, icon }: { en: string; ur: string; icon?: string }) {
   return (
-    <span className="rounded-full px-3 py-1.5 text-[12px] font-medium text-[var(--text-muted)]"
+    <span className="rounded-full px-3 py-1.5 text-[12px] font-medium text-[var(--text-muted)] flex items-center gap-1.5"
       style={{ background: 'rgba(5,10,8,0.5)', border: '1px solid rgba(90,138,110,0.12)' }}>
-      {label}
+      {icon && <span>{icon}</span>}
+      <span>{en}</span>
+      {ur && ur !== en && (
+        <span className="text-[var(--sage)]" dir="rtl" style={{ fontFamily: 'Noto Nastaliq Urdu', lineHeight: 1.6 }}>· {ur}</span>
+      )}
     </span>
   )
 }
