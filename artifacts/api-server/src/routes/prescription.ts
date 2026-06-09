@@ -145,14 +145,14 @@ async function generateWithFallback(parts: object[]) {
 }
 
 router.post("/prescription/analyze", async (req, res): Promise<void> => {
-  const { imageData, mimeType, contextImages } = req.body;
+  const { imageData, mimeType, contextImages, contextText } = req.body;
 
   if (!imageData || !mimeType) {
     res.status(400).json({ error: "imageData and mimeType are required" });
     return;
   }
 
-  const hasContext = Array.isArray(contextImages) && contextImages.length > 0;
+  const hasContext = (Array.isArray(contextImages) && contextImages.length > 0) || (typeof contextText === "string" && contextText.trim().length > 0);
 
   try {
     req.log.info({ hasContext, contextCount: hasContext ? contextImages.length : 0 }, "Analyzing prescription image");
@@ -162,12 +162,16 @@ router.post("/prescription/analyze", async (req, res): Promise<void> => {
       { inlineData: { mimeType, data: imageData } },
     ];
 
-    if (hasContext) {
+    if (Array.isArray(contextImages) && contextImages.length > 0) {
       for (const ctx of contextImages) {
         if (ctx.imageData && ctx.mimeType) {
           parts.push({ inlineData: { mimeType: ctx.mimeType, data: ctx.imageData } });
         }
       }
+    }
+
+    if (typeof contextText === "string" && contextText.trim().length > 0) {
+      parts.push({ text: `## Patient's Lab Results (entered manually)\n${contextText.trim()}` });
     }
 
     parts.push({ text: hasContext ? USER_PROMPT_WITH_CONTEXT : USER_PROMPT });

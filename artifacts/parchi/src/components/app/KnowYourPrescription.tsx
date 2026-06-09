@@ -252,8 +252,17 @@ export default function KnowYourPrescription() {
 
   const [prescriptionFiles, setPrescriptionFiles] = useState<File[]>([])
   const [reportFiles, setReportFiles] = useState<File[]>([])
+  const [reportMode, setReportMode] = useState<'upload' | 'manual'>('upload')
+  const [manualTests, setManualTests] = useState([{ name: '', value: '', unit: '' }])
   const [stage, setStage] = useState<'upload' | 'analyzing' | 'error'>('upload')
   const [apiError, setApiError] = useState('')
+
+  const addTestRow = () => setManualTests(r => [...r, { name: '', value: '', unit: '' }])
+  const removeTestRow = (i: number) => setManualTests(r => r.filter((_, idx) => idx !== i))
+  const updateTestRow = (i: number, field: 'name' | 'value' | 'unit', val: string) =>
+    setManualTests(r => r.map((row, idx) => idx === i ? { ...row, [field]: val } : row))
+
+  const hasManualEntries = manualTests.some(r => r.name.trim() && r.value.trim())
 
   const analyze = async () => {
     if (!prescriptionFiles[0]) return
@@ -264,12 +273,19 @@ export default function KnowYourPrescription() {
       const imageData = await fileToBase64(prescFile)
       const mimeType = prescFile.type || 'image/jpeg'
 
-      const contextImages = await Promise.all(
-        reportFiles.map(async f => ({
-          imageData: await fileToBase64(f),
-          mimeType: f.type || 'image/jpeg',
-        }))
-      )
+      const contextImages = reportMode === 'upload'
+        ? await Promise.all(reportFiles.map(async f => ({
+            imageData: await fileToBase64(f),
+            mimeType: f.type || 'image/jpeg',
+          })))
+        : []
+
+      const contextText = reportMode === 'manual' && hasManualEntries
+        ? manualTests
+            .filter(r => r.name.trim() && r.value.trim())
+            .map(r => `${r.name.trim()}: ${r.value.trim()}${r.unit.trim() ? ' ' + r.unit.trim() : ''}`)
+            .join('\n')
+        : ''
 
       const res = await fetch('/api/prescription/analyze', {
         method: 'POST',
@@ -281,6 +297,7 @@ export default function KnowYourPrescription() {
           imageData,
           mimeType,
           ...(contextImages.length > 0 ? { contextImages } : {}),
+          ...(contextText ? { contextText } : {}),
         }),
       })
 
@@ -298,6 +315,8 @@ export default function KnowYourPrescription() {
     clearAnalysis()
     setPrescriptionFiles([])
     setReportFiles([])
+    setReportMode('upload')
+    setManualTests([{ name: '', value: '', unit: '' }])
     setStage('upload')
     setApiError('')
   }
@@ -361,8 +380,10 @@ export default function KnowYourPrescription() {
           </div>
           <p className="mb-1 font-display text-lg font-bold text-[var(--cream)]">Gemini is reading your prescription…</p>
           <p className="text-[13px] text-[var(--text-muted)]">
-            {reportFiles.length > 0
+            {reportMode === 'upload' && reportFiles.length > 0
               ? `Using ${reportFiles.length} test report${reportFiles.length > 1 ? 's' : ''} for richer context`
+              : reportMode === 'manual' && hasManualEntries
+              ? 'Using your lab values for personalised context'
               : 'Identifying medicines and dosages'}
           </p>
         </div>
@@ -424,33 +445,119 @@ export default function KnowYourPrescription() {
 
           {/* ── Box 2: Test Reports (optional) ── */}
           <div>
-            <div className="mb-3 flex items-center gap-2">
+            {/* Header row with mode toggle */}
+            <div className="mb-3 flex flex-wrap items-center gap-2">
               <div className="flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-bold"
                 style={{ background: 'rgba(107,159,212,0.18)', color: '#6b9fd4' }}>2</div>
-              <p className="text-[13px] font-bold text-[var(--cream)]">Upload test reports / lab results</p>
+              <p className="text-[13px] font-bold text-[var(--cream)]">Lab results / test reports</p>
               <span className="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#6b9fd4]"
                 style={{ background: 'rgba(107,159,212,0.12)' }}>Optional</span>
+              {/* Upload / Manual toggle */}
+              <div className="ml-auto flex rounded-full p-0.5 text-[11px] font-bold"
+                style={{ background: 'rgba(107,159,212,0.1)', border: '1px solid rgba(107,159,212,0.18)' }}>
+                <button
+                  onClick={() => setReportMode('upload')}
+                  className="rounded-full px-3 py-1 transition-all"
+                  style={reportMode === 'upload'
+                    ? { background: '#6b9fd4', color: '#1a2a1f' }
+                    : { color: '#6b9fd4' }}>
+                  Upload
+                </button>
+                <button
+                  onClick={() => setReportMode('manual')}
+                  className="rounded-full px-3 py-1 transition-all"
+                  style={reportMode === 'manual'
+                    ? { background: '#6b9fd4', color: '#1a2a1f' }
+                    : { color: '#6b9fd4' }}>
+                  Enter manually
+                </button>
+              </div>
             </div>
+
             <div className="mb-3 flex items-start gap-2 rounded-xl px-4 py-3 text-[12px]"
               style={{ background: 'rgba(107,159,212,0.06)', border: '1px solid rgba(107,159,212,0.15)', color: '#6b9fd4' }}>
               <svg className="mt-0.5 h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-              <span>Sharing your blood tests, X-ray reports, or lab results helps Gemini understand <strong>why</strong> each medicine was prescribed and give you sharper, more personalised explanations.</span>
+              <span>
+                {reportMode === 'upload'
+                  ? <>Sharing your blood tests, X-ray reports, or lab results helps Gemini understand <strong>why</strong> each medicine was prescribed.</>
+                  : <>Type in your test names and values (e.g. <strong>HbA1c: 7.2%</strong>) — Gemini will use them to give more personalised explanations.</>}
+              </span>
             </div>
-            <UploadBox
-              label="Test reports or lab results"
-              urduLabel="ٹیسٹ رپورٹ یا لیب نتائج اپ لوڈ کریں"
-              accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp,application/pdf,.pdf"
-              files={reportFiles}
-              onFiles={setReportFiles}
-              multiple
-              accentColor="rgba(107,159,212,0.35)"
-              accentBg="rgba(107,159,212,0.04)"
-              icon={
-                <svg className="h-7 w-7 text-[#6b9fd4]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M9 17H7A5 5 0 017 7h2M15 7h2a5 5 0 010 10h-2M8 12h8"/>
-                </svg>
-              }
-            />
+
+            {/* Upload mode */}
+            {reportMode === 'upload' && (
+              <UploadBox
+                label="Test reports or lab results"
+                urduLabel="ٹیسٹ رپورٹ یا لیب نتائج اپ لوڈ کریں"
+                accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp,application/pdf,.pdf"
+                files={reportFiles}
+                onFiles={setReportFiles}
+                multiple
+                accentColor="rgba(107,159,212,0.35)"
+                accentBg="rgba(107,159,212,0.04)"
+                icon={
+                  <svg className="h-7 w-7 text-[#6b9fd4]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M9 17H7A5 5 0 017 7h2M15 7h2a5 5 0 010 10h-2M8 12h8"/>
+                  </svg>
+                }
+              />
+            )}
+
+            {/* Manual entry mode */}
+            {reportMode === 'manual' && (
+              <div className="rounded-2xl p-4 space-y-3"
+                style={{ background: 'rgba(107,159,212,0.04)', border: '1px solid rgba(107,159,212,0.18)' }}>
+                {/* Column headers */}
+                <div className="grid grid-cols-[1fr_120px_80px_24px] gap-2 px-1">
+                  <span className="text-[10px] font-bold uppercase tracking-wide text-[var(--text-muted)]">Test name</span>
+                  <span className="text-[10px] font-bold uppercase tracking-wide text-[var(--text-muted)]">Result</span>
+                  <span className="text-[10px] font-bold uppercase tracking-wide text-[var(--text-muted)]">Unit</span>
+                  <span />
+                </div>
+                {manualTests.map((row, i) => (
+                  <div key={i} className="grid grid-cols-[1fr_120px_80px_24px] gap-2 items-center">
+                    <input
+                      type="text"
+                      placeholder="e.g. HbA1c"
+                      value={row.name}
+                      onChange={e => updateTestRow(i, 'name', e.target.value)}
+                      className="rounded-xl px-3 py-2 text-[13px] text-[var(--cream)] outline-none placeholder:text-[var(--text-muted)] focus:ring-1"
+                      style={{ background: 'var(--bg-card)', border: '1px solid rgba(107,159,212,0.2)', focusRingColor: '#6b9fd4' }}
+                    />
+                    <input
+                      type="text"
+                      placeholder="e.g. 7.2"
+                      value={row.value}
+                      onChange={e => updateTestRow(i, 'value', e.target.value)}
+                      className="rounded-xl px-3 py-2 text-[13px] text-[var(--cream)] outline-none placeholder:text-[var(--text-muted)]"
+                      style={{ background: 'var(--bg-card)', border: '1px solid rgba(107,159,212,0.2)' }}
+                    />
+                    <input
+                      type="text"
+                      placeholder="e.g. %"
+                      value={row.unit}
+                      onChange={e => updateTestRow(i, 'unit', e.target.value)}
+                      className="rounded-xl px-3 py-2 text-[13px] text-[var(--cream)] outline-none placeholder:text-[var(--text-muted)]"
+                      style={{ background: 'var(--bg-card)', border: '1px solid rgba(107,159,212,0.2)' }}
+                    />
+                    <button
+                      onClick={() => removeTestRow(i)}
+                      disabled={manualTests.length === 1}
+                      className="flex h-6 w-6 items-center justify-center rounded-full transition-colors disabled:opacity-0"
+                      style={{ color: 'var(--coral)' }}>
+                      <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                  </div>
+                ))}
+                <button
+                  onClick={addTestRow}
+                  className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] font-semibold transition-colors"
+                  style={{ color: '#6b9fd4', background: 'rgba(107,159,212,0.1)' }}>
+                  <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  Add another test
+                </button>
+              </div>
+            )}
           </div>
 
           {/* ── Analyze button ── */}
@@ -459,8 +566,10 @@ export default function KnowYourPrescription() {
             onClick={analyze}
             className="w-full rounded-full py-4 text-sm font-bold text-[var(--cream)] transition-all duration-200 hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-40"
             style={{ background: 'var(--sage)', boxShadow: prescriptionFiles[0] ? '0 0 24px rgba(90,138,110,0.45)' : 'none' }}>
-            {reportFiles.length > 0
+            {reportMode === 'upload' && reportFiles.length > 0
               ? `Analyze prescription + ${reportFiles.length} report${reportFiles.length > 1 ? 's' : ''} →`
+              : reportMode === 'manual' && hasManualEntries
+              ? `Analyze prescription + ${manualTests.filter(r => r.name.trim() && r.value.trim()).length} lab value${manualTests.filter(r => r.name.trim() && r.value.trim()).length > 1 ? 's' : ''} →`
               : 'Analyze prescription →'}
           </button>
 
