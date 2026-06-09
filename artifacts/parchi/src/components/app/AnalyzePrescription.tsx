@@ -354,7 +354,7 @@ export default function AnalyzePrescription() {
             <button onClick={() => navigate('/app/know')}
               className="flex-1 rounded-full border py-3.5 text-sm font-bold text-[var(--cream)] transition-all hover:bg-[rgba(90,138,110,0.08)]"
               style={{ borderColor: 'rgba(90,138,110,0.3)' }}>
-              Know Your Rx →
+              Know Your Prescription →
             </button>
           </div>
 

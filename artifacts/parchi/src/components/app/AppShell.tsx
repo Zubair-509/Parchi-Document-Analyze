@@ -24,7 +24,7 @@ const navItems = [
   },
   {
     to: '/app/know',
-    label: 'Know Rx',
+    label: 'Know your prescription',
     icon: (
       <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>

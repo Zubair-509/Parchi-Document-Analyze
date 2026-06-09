@@ -82,6 +82,8 @@ Return ONLY a valid JSON object with this exact structure:
 
 const USER_PROMPT = `Please read this prescription image carefully. Extract every medicine you can see — including handwritten ones. Follow the system instructions exactly and return only valid JSON.`;
 
+const USER_PROMPT_WITH_CONTEXT = `Please read this prescription image carefully. The patient has also provided additional documents (lab reports or test results) as supporting context — use them to better understand the patient's health conditions, give more relevant explanations of why each medicine is prescribed, and provide more targeted doctor questions. Extract every medicine from the prescription and return only valid JSON.`;
+
 function cleanJson(raw: string): string {
   const trimmed = raw.trim();
   const fenced = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
@@ -143,20 +145,34 @@ async function generateWithFallback(parts: object[]) {
 }
 
 router.post("/prescription/analyze", async (req, res): Promise<void> => {
-  const { imageData, mimeType } = req.body;
+  const { imageData, mimeType, contextImages } = req.body;
 
   if (!imageData || !mimeType) {
     res.status(400).json({ error: "imageData and mimeType are required" });
     return;
   }
 
-  try {
-    req.log.info("Analyzing prescription image");
+  const hasContext = Array.isArray(contextImages) && contextImages.length > 0;
 
-    const response = await generateWithFallback([
+  try {
+    req.log.info({ hasContext, contextCount: hasContext ? contextImages.length : 0 }, "Analyzing prescription image");
+
+    // Build parts: prescription first, then optional context images, then prompt
+    const parts: object[] = [
       { inlineData: { mimeType, data: imageData } },
-      { text: USER_PROMPT },
-    ]);
+    ];
+
+    if (hasContext) {
+      for (const ctx of contextImages) {
+        if (ctx.imageData && ctx.mimeType) {
+          parts.push({ inlineData: { mimeType: ctx.mimeType, data: ctx.imageData } });
+        }
+      }
+    }
+
+    parts.push({ text: hasContext ? USER_PROMPT_WITH_CONTEXT : USER_PROMPT });
+
+    const response = await generateWithFallback(parts);
 
     const text = response.text;
     if (!text) {
