@@ -1,45 +1,48 @@
-import { Switch, Route, Router as WouterRouter } from "wouter";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Toaster } from "@/components/ui/toaster";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { AuthProvider } from "@/contexts/auth-context";
-import NotFound from "@/pages/not-found";
-import { Home } from "./pages/Home";
-import { Prescription } from "./pages/Prescription";
-import { TestReport } from "./pages/TestReport";
-import { History } from "./pages/History";
-import { Login } from "./pages/Login";
-import { Register } from "./pages/Register";
+import { Routes, Route, Navigate } from 'react-router-dom'
+import Navbar from './components/Navbar'
+import Hero from './components/Hero'
+import HowItWorks from './components/HowItWorks'
+import Features from './components/Features'
+import Stats from './components/Stats'
+import About from './components/About'
+import CTA from './components/CTA'
+import Footer from './components/Footer'
+import AuthPage from './components/AuthPage'
+import ForgotPassword from './components/ForgotPassword'
+import AppShell from './components/app/AppShell'
+import AnalyzePrescription from './components/app/AnalyzePrescription'
+import PricingComparisons from './components/app/PricingComparisons'
+import KnowYourPrescription from './components/app/KnowYourPrescription'
 
-const queryClient = new QueryClient();
-
-function Router() {
+function Landing() {
   return (
-    <Switch>
-      <Route path="/" component={Home} />
-      <Route path="/prescription" component={Prescription} />
-      <Route path="/testreport" component={TestReport} />
-      <Route path="/history" component={History} />
-      <Route path="/login" component={Login} />
-      <Route path="/register" component={Register} />
-      <Route component={NotFound} />
-    </Switch>
-  );
+    <>
+      <Navbar />
+      <Hero />
+      <HowItWorks />
+      <Features />
+      <Stats />
+      <About />
+      <CTA />
+      <Footer />
+    </>
+  )
 }
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <AuthProvider>
-          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-            <Router />
-          </WouterRouter>
-          <Toaster />
-        </AuthProvider>
-      </TooltipProvider>
-    </QueryClientProvider>
-  );
+    <Routes>
+      <Route path="/" element={<Landing />} />
+      <Route path="/auth" element={<AuthPage />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/app" element={<AppShell />}>
+        <Route index element={<Navigate to="/app/analyze" replace />} />
+        <Route path="analyze" element={<AnalyzePrescription />} />
+        <Route path="pricing" element={<PricingComparisons />} />
+        <Route path="know" element={<KnowYourPrescription />} />
+      </Route>
+    </Routes>
+  )
 }
 
-export default App;
+export default App
